@@ -1,0 +1,57 @@
+(defines
+    (build-dir "./build")
+    (build-lib-dir (path build-dir "lib"))
+    (libpymo-file (path build-lib-dir "libpymo.ykm"))
+    (libpymo-url
+        "https://raw.githubusercontent.com/Strrationalism/CPyMO/main/libpymo.ykm"))
+
+(task (download-libpymo)
+    (out libpymo-file)
+    (make
+        (display "Downloading libpymo...")
+        (ensure-dir build-lib-dir)
+        (http-download libpymo-file libpymo-url)))
+
+(task (compile-ykm src dst)
+    (in src)
+    (in libpymo-file)
+    (out dst)
+    (make
+        (shell
+            "ykmc"
+            src
+            "--target-pymo"
+            dst
+            (+ "-L" build-lib-dir))
+        (display "Compile " src " -> " dst)))
+
+(action rebuild
+    (clean)
+    (build))
+
+(define (compile-all-ykms)
+    (define all-ykms (match-files "." "./src/*.ykm"))
+    (foreach ykm all-ykms
+        (define dst (+ "./script/" (filename-no-ext ykm) ".txt"))
+        (compile-ykm ykm dst)))
+
+(action build
+    (download-libpymo)
+    (ensure-dir "./script")
+    (compile-all-ykms))
+
+(action run
+    (build)
+    (shell "cpymo"))
+
+(action clean
+    (delete
+        "./build"
+        "./save"
+        "./script"))
+
+(export
+    clean
+    run
+    rebuild
+    build)
